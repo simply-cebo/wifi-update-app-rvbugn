@@ -1,78 +1,63 @@
-import React from "react";
-import { Stack, Link } from "expo-router";
-import { FlatList, Pressable, StyleSheet, View, Text, Alert, Platform } from "react-native";
-import { IconSymbol } from "@/components/IconSymbol";
-import { GlassView } from "expo-glass-effect";
-import { useTheme } from "@react-navigation/native";
 
-const ICON_COLOR = "#007AFF";
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  TextInput,
+  Platform,
+} from 'react-native';
+import { Stack, useRouter, Redirect } from 'expo-router';
+import { useAuth } from '@/contexts/AuthContext';
+import { useClients } from '@/contexts/ClientContext';
+import { colors, commonStyles } from '@/styles/commonStyles';
+import { IconSymbol } from '@/components/IconSymbol';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
-  const theme = useTheme();
-  const modalDemos = [
-    {
-      title: "Standard Modal",
-      description: "Full screen modal presentation",
-      route: "/modal",
-      color: "#007AFF",
-    },
-    {
-      title: "Form Sheet",
-      description: "Bottom sheet with detents and grabber",
-      route: "/formsheet",
-      color: "#34C759",
-    },
-    {
-      title: "Transparent Modal",
-      description: "Overlay without obscuring background",
-      route: "/transparent-modal",
-      color: "#FF9500",
-    }
-  ];
+  const { isAuthenticated, logout, adminName } = useAuth();
+  const { clients } = useClients();
+  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const renderModalDemo = ({ item }: { item: (typeof modalDemos)[0] }) => (
-    <GlassView style={[
-      styles.demoCard,
-      Platform.OS !== 'ios' && { backgroundColor: theme.dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }
-    ]} glassEffectStyle="regular">
-      <View style={[styles.demoIcon, { backgroundColor: item.color }]}>
-        <IconSymbol name="square.grid.3x3" color="white" size={24} />
-      </View>
-      <View style={styles.demoContent}>
-        <Text style={[styles.demoTitle, { color: theme.colors.text }]}>{item.title}</Text>
-        <Text style={[styles.demoDescription, { color: theme.dark ? '#98989D' : '#666' }]}>{item.description}</Text>
-      </View>
-      <Link href={item.route as any} asChild>
-        <Pressable>
-          <GlassView style={[
-            styles.tryButton,
-            Platform.OS !== 'ios' && { backgroundColor: theme.dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)' }
-          ]} glassEffectStyle="clear">
-            <Text style={[styles.tryButtonText, { color: theme.colors.primary }]}>Try It</Text>
-          </GlassView>
-        </Pressable>
-      </Link>
-    </GlassView>
+  // Redirect to login if not authenticated
+  if (!isAuthenticated) {
+    return <Redirect href="/login" />;
+  }
+
+  const filteredClients = clients.filter(
+    client =>
+      client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      client.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      client.phone.includes(searchQuery)
   );
+
+  const activeClients = filteredClients.filter(c => c.status === 'active').length;
+  const expiringClients = filteredClients.filter(c => c.status === 'expiring').length;
+  const expiredClients = filteredClients.filter(c => c.status === 'expired').length;
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active':
+        return colors.success;
+      case 'expiring':
+        return colors.warning;
+      case 'expired':
+        return colors.danger;
+      default:
+        return colors.secondary;
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    return status.charAt(0).toUpperCase() + status.slice(1);
+  };
 
   const renderHeaderRight = () => (
-    <Pressable
-      onPress={() => Alert.alert("Not Implemented", "This feature is not implemented yet")}
-      style={styles.headerButtonContainer}
-    >
-      <IconSymbol name="plus" color={theme.colors.primary} />
-    </Pressable>
-  );
-
-  const renderHeaderLeft = () => (
-    <Pressable
-      onPress={() => Alert.alert("Not Implemented", "This feature is not implemented yet")}
-      style={styles.headerButtonContainer}
-    >
-      <IconSymbol
-        name="gear"
-        color={theme.colors.primary}
-      />
+    <Pressable onPress={logout} style={styles.headerButton}>
+      <IconSymbol name="rectangle.portrait.and.arrow.right" color={colors.danger} size={24} />
     </Pressable>
   );
 
@@ -81,25 +66,128 @@ export default function HomeScreen() {
       {Platform.OS === 'ios' && (
         <Stack.Screen
           options={{
-            title: "Building the app...",
+            title: 'WiFi Subscriptions',
             headerRight: renderHeaderRight,
-            headerLeft: renderHeaderLeft,
           }}
         />
       )}
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <FlatList
-          data={modalDemos}
-          renderItem={renderModalDemo}
-          keyExtractor={(item) => item.route}
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <ScrollView
+          style={styles.scrollView}
           contentContainerStyle={[
-            styles.listContainer,
-            Platform.OS !== 'ios' && styles.listContainerWithTabBar
+            styles.scrollContent,
+            Platform.OS !== 'ios' && styles.scrollContentWithTabBar,
           ]}
-          contentInsetAdjustmentBehavior="automatic"
           showsVerticalScrollIndicator={false}
-        />
-      </View>
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.greeting}>Welcome back,</Text>
+              <Text style={styles.adminName}>{adminName}</Text>
+            </View>
+            {Platform.OS !== 'ios' && (
+              <Pressable onPress={logout} style={styles.logoutButton}>
+                <IconSymbol name="rectangle.portrait.and.arrow.right" color={colors.danger} size={24} />
+              </Pressable>
+            )}
+          </View>
+
+          {/* Stats Cards */}
+          <View style={styles.statsContainer}>
+            <View style={[styles.statCard, { borderLeftColor: colors.success }]}>
+              <Text style={styles.statNumber}>{activeClients}</Text>
+              <Text style={styles.statLabel}>Active</Text>
+            </View>
+            <View style={[styles.statCard, { borderLeftColor: colors.warning }]}>
+              <Text style={styles.statNumber}>{expiringClients}</Text>
+              <Text style={styles.statLabel}>Expiring</Text>
+            </View>
+            <View style={[styles.statCard, { borderLeftColor: colors.danger }]}>
+              <Text style={styles.statNumber}>{expiredClients}</Text>
+              <Text style={styles.statLabel}>Expired</Text>
+            </View>
+          </View>
+
+          {/* Search Bar */}
+          <View style={styles.searchContainer}>
+            <IconSymbol name="magnifyingglass" size={20} color={colors.textSecondary} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search clients..."
+              placeholderTextColor={colors.textSecondary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <Pressable onPress={() => setSearchQuery('')}>
+                <IconSymbol name="xmark.circle.fill" size={20} color={colors.textSecondary} />
+              </Pressable>
+            )}
+          </View>
+
+          {/* Client List */}
+          <View style={styles.clientsSection}>
+            <Text style={styles.sectionTitle}>
+              Clients ({filteredClients.length})
+            </Text>
+            {filteredClients.map(client => (
+              <Pressable
+                key={client.id}
+                style={styles.clientCard}
+                onPress={() => router.push(`/client-detail?id=${client.id}`)}
+              >
+                <View style={styles.clientHeader}>
+                  <View style={styles.clientInfo}>
+                    <Text style={styles.clientName}>{client.name}</Text>
+                    <Text style={styles.clientEmail}>{client.email}</Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      { backgroundColor: getStatusColor(client.status) },
+                    ]}
+                  >
+                    <Text style={styles.statusText}>
+                      {getStatusLabel(client.status)}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.clientDetails}>
+                  <View style={styles.detailRow}>
+                    <IconSymbol name="calendar" size={16} color={colors.textSecondary} />
+                    <Text style={styles.detailText}>
+                      {client.subscriptionDays} days remaining
+                    </Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <IconSymbol name="phone" size={16} color={colors.textSecondary} />
+                    <Text style={styles.detailText}>{client.phone}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.clientFooter}>
+                  <Text style={styles.lastUpdate}>
+                    Last updated: {new Date(client.lastUpdate).toLocaleDateString()}
+                  </Text>
+                  <IconSymbol name="chevron.right" size={16} color={colors.textSecondary} />
+                </View>
+              </Pressable>
+            ))}
+
+            {filteredClients.length === 0 && (
+              <View style={styles.emptyState}>
+                <IconSymbol name="magnifyingglass" size={48} color={colors.textSecondary} />
+                <Text style={styles.emptyText}>No clients found</Text>
+                <Text style={styles.emptySubtext}>
+                  Try adjusting your search query
+                </Text>
+              </View>
+            )}
+          </View>
+        </ScrollView>
+      </SafeAreaView>
     </>
   );
 }
@@ -107,55 +195,165 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    // backgroundColor handled dynamically
+    backgroundColor: colors.background,
   },
-  listContainer: {
-    paddingVertical: 16,
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 16,
+    paddingBottom: 16,
   },
-  listContainerWithTabBar: {
-    paddingBottom: 100, // Extra padding for floating tab bar
+  scrollContentWithTabBar: {
+    paddingBottom: 100,
   },
-  demoCard: {
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  greeting: {
+    fontSize: 16,
+    color: colors.textSecondary,
+  },
+  adminName: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: 4,
+  },
+  logoutButton: {
+    padding: 8,
+  },
+  headerButton: {
+    padding: 8,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    borderLeftWidth: 4,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)',
+    elevation: 2,
+  },
+  statNumber: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 20,
+    gap: 12,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)',
+    elevation: 2,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: colors.text,
+  },
+  clientsSection: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  clientCard: {
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)',
+    elevation: 2,
+  },
+  clientHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
   },
-  demoIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  demoContent: {
+  clientInfo: {
     flex: 1,
   },
-  demoTitle: {
+  clientName: {
     fontSize: 18,
     fontWeight: '600',
+    color: colors.text,
     marginBottom: 4,
-    // color handled dynamically
   },
-  demoDescription: {
+  clientEmail: {
     fontSize: 14,
-    lineHeight: 18,
-    // color handled dynamically
+    color: colors.textSecondary,
   },
-  headerButtonContainer: {
-    padding: 6,
+  statusBadge: {
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 12,
   },
-  tryButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  tryButtonText: {
-    fontSize: 14,
+  statusText: {
+    fontSize: 12,
     fontWeight: '600',
-    // color handled dynamically
+    color: '#ffffff',
+  },
+  clientDetails: {
+    gap: 8,
+    marginBottom: 12,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  detailText: {
+    fontSize: 14,
+    color: colors.text,
+  },
+  clientFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  lastUpdate: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 48,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: 16,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 8,
   },
 });
