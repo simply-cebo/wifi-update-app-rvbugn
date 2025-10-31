@@ -31,12 +31,18 @@ export default function LoginScreen() {
       return;
     }
 
-    const success = login(username, password);
-    if (success) {
-      console.log('Login successful, navigating to home');
-      router.replace('/(tabs)/(home)/');
+    const result = login(username, password);
+    if (result.success) {
+      console.log('Login successful');
+      if (result.requiresPasswordChange) {
+        console.log('Password change required, navigating to change password screen');
+        router.replace('/change-password');
+      } else {
+        console.log('Navigating to home');
+        router.replace('/(tabs)/(home)/');
+      }
     } else {
-      Alert.alert('Login Failed', 'Invalid username or password. Try admin/admin123');
+      Alert.alert('Login Failed', 'Invalid username or password');
     }
   };
 
@@ -101,12 +107,6 @@ export default function LoginScreen() {
             <Pressable style={styles.loginButton} onPress={handleLogin}>
               <Text style={styles.loginButtonText}>Login</Text>
             </Pressable>
-
-            <View style={styles.demoCredentials}>
-              <Text style={styles.demoText}>Demo Credentials:</Text>
-              <Text style={styles.demoText}>Username: admin</Text>
-              <Text style={styles.demoText}>Password: admin123</Text>
-            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -200,17 +200,5 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 18,
     fontWeight: '600',
-  },
-  demoCredentials: {
-    marginTop: 32,
-    padding: 16,
-    backgroundColor: colors.highlight,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  demoText: {
-    fontSize: 14,
-    color: colors.text,
-    marginBottom: 4,
   },
 });

@@ -8,6 +8,8 @@ interface ClientContextType {
   updateClient: (clientId: string, updates: Partial<Client>) => void;
   getClientById: (clientId: string) => Client | undefined;
   sendUpdateMessage: (clientId: string, message: string) => void;
+  addClient: (client: Omit<Client, 'id' | 'lastUpdate'>) => void;
+  removeClient: (clientId: string) => void;
 }
 
 const ClientContext = createContext<ClientContextType | undefined>(undefined);
@@ -59,8 +61,30 @@ export function ClientProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const addClient = (clientData: Omit<Client, 'id' | 'lastUpdate'>) => {
+    console.log('Adding new client:', clientData);
+    const newClient: Client = {
+      ...clientData,
+      id: Date.now().toString(),
+      lastUpdate: new Date().toISOString(),
+    };
+    setClients(prevClients => [...prevClients, newClient]);
+  };
+
+  const removeClient = (clientId: string) => {
+    console.log('Removing client:', clientId);
+    setClients(prevClients => prevClients.filter(client => client.id !== clientId));
+  };
+
   return (
-    <ClientContext.Provider value={{ clients, updateClient, getClientById, sendUpdateMessage }}>
+    <ClientContext.Provider value={{ 
+      clients, 
+      updateClient, 
+      getClientById, 
+      sendUpdateMessage,
+      addClient,
+      removeClient 
+    }}>
       {children}
     </ClientContext.Provider>
   );

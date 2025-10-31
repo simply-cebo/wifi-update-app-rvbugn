@@ -8,6 +8,7 @@ import {
   Pressable,
   TextInput,
   Platform,
+  Alert,
 } from 'react-native';
 import { Stack, useRouter, Redirect } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,7 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const { isAuthenticated, logout, adminName } = useAuth();
-  const { clients } = useClients();
+  const { clients, removeClient } = useClients();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -53,6 +54,27 @@ export default function HomeScreen() {
 
   const getStatusLabel = (status: string) => {
     return status.charAt(0).toUpperCase() + status.slice(1);
+  };
+
+  const handleRemoveClient = (clientId: string, clientName: string) => {
+    Alert.alert(
+      'Remove Client',
+      `Are you sure you want to remove ${clientName}?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            removeClient(clientId);
+            Alert.alert('Success', `${clientName} has been removed`);
+          },
+        },
+      ]
+    );
   };
 
   const renderHeaderRight = () => (
@@ -126,54 +148,72 @@ export default function HomeScreen() {
             )}
           </View>
 
+          {/* Add Client Button */}
+          <Pressable
+            style={styles.addClientButton}
+            onPress={() => router.push('/add-client')}
+          >
+            <IconSymbol name="plus.circle.fill" size={24} color="#ffffff" />
+            <Text style={styles.addClientButtonText}>Add New Client</Text>
+          </Pressable>
+
           {/* Client List */}
           <View style={styles.clientsSection}>
             <Text style={styles.sectionTitle}>
               Clients ({filteredClients.length})
             </Text>
             {filteredClients.map(client => (
-              <Pressable
-                key={client.id}
-                style={styles.clientCard}
-                onPress={() => router.push(`/client-detail?id=${client.id}`)}
-              >
-                <View style={styles.clientHeader}>
-                  <View style={styles.clientInfo}>
-                    <Text style={styles.clientName}>{client.name}</Text>
-                    <Text style={styles.clientEmail}>{client.email}</Text>
+              <View key={client.id} style={styles.clientCard}>
+                <Pressable
+                  style={styles.clientCardContent}
+                  onPress={() => router.push(`/client-detail?id=${client.id}`)}
+                >
+                  <View style={styles.clientHeader}>
+                    <View style={styles.clientInfo}>
+                      <Text style={styles.clientName}>{client.name}</Text>
+                      <Text style={styles.clientEmail}>{client.email}</Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        { backgroundColor: getStatusColor(client.status) },
+                      ]}
+                    >
+                      <Text style={styles.statusText}>
+                        {getStatusLabel(client.status)}
+                      </Text>
+                    </View>
                   </View>
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      { backgroundColor: getStatusColor(client.status) },
-                    ]}
-                  >
-                    <Text style={styles.statusText}>
-                      {getStatusLabel(client.status)}
-                    </Text>
-                  </View>
-                </View>
 
-                <View style={styles.clientDetails}>
-                  <View style={styles.detailRow}>
-                    <IconSymbol name="calendar" size={16} color={colors.textSecondary} />
-                    <Text style={styles.detailText}>
-                      {client.subscriptionDays} days remaining
-                    </Text>
+                  <View style={styles.clientDetails}>
+                    <View style={styles.detailRow}>
+                      <IconSymbol name="calendar" size={16} color={colors.textSecondary} />
+                      <Text style={styles.detailText}>
+                        {client.subscriptionDays} days remaining
+                      </Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <IconSymbol name="phone" size={16} color={colors.textSecondary} />
+                      <Text style={styles.detailText}>{client.phone}</Text>
+                    </View>
                   </View>
-                  <View style={styles.detailRow}>
-                    <IconSymbol name="phone" size={16} color={colors.textSecondary} />
-                    <Text style={styles.detailText}>{client.phone}</Text>
-                  </View>
-                </View>
 
-                <View style={styles.clientFooter}>
-                  <Text style={styles.lastUpdate}>
-                    Last updated: {new Date(client.lastUpdate).toLocaleDateString()}
-                  </Text>
-                  <IconSymbol name="chevron.right" size={16} color={colors.textSecondary} />
-                </View>
-              </Pressable>
+                  <View style={styles.clientFooter}>
+                    <Text style={styles.lastUpdate}>
+                      Last updated: {new Date(client.lastUpdate).toLocaleDateString()}
+                    </Text>
+                    <IconSymbol name="chevron.right" size={16} color={colors.textSecondary} />
+                  </View>
+                </Pressable>
+
+                {/* Remove Button */}
+                <Pressable
+                  style={styles.removeButton}
+                  onPress={() => handleRemoveClient(client.id, client.name)}
+                >
+                  <IconSymbol name="trash" size={20} color={colors.danger} />
+                </Pressable>
+              </View>
             ))}
 
             {filteredClients.length === 0 && (
@@ -260,7 +300,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    marginBottom: 20,
+    marginBottom: 16,
     gap: 12,
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)',
     elevation: 2,
@@ -269,6 +309,24 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: colors.text,
+  },
+  addClientButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    marginBottom: 20,
+    gap: 8,
+    boxShadow: '0px 2px 8px rgba(0, 123, 255, 0.3)',
+    elevation: 3,
+  },
+  addClientButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   clientsSection: {
     marginBottom: 20,
@@ -282,10 +340,13 @@ const styles = StyleSheet.create({
   clientCard: {
     backgroundColor: colors.card,
     borderRadius: 12,
-    padding: 16,
     marginBottom: 12,
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)',
     elevation: 2,
+    overflow: 'hidden',
+  },
+  clientCardContent: {
+    padding: 16,
   },
   clientHeader: {
     flexDirection: 'row',
@@ -340,6 +401,15 @@ const styles = StyleSheet.create({
   lastUpdate: {
     fontSize: 12,
     color: colors.textSecondary,
+  },
+  removeButton: {
+    backgroundColor: colors.highlight,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
   emptyState: {
     alignItems: 'center',
